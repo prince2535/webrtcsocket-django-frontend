@@ -52,7 +52,7 @@
 
 <script>
 /* ---------------- WebSocket ---------------- */
-const ws = new WebSocket("ws://127.0.0.1:8000/ws/chat/");
+const ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
 
 /* ---------------- WebRTC state ---------------- */
 let pc = null;
@@ -159,3 +159,4 @@ ws.onmessage = async (e) => {
 
 </body>
 </html>
+
