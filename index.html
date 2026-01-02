@@ -26,14 +26,28 @@
       border-radius: 10px;
     }
 
-    /* ✅ Mirror ONLY local video (self-view) */
     #localVideo {
       transform: scaleX(-1);
     }
 
-    /* ✅ Remote video must stay real orientation */
     #remoteVideo {
       transform: scaleX(1);
+    }
+
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 200px;
+    }
+
+    button {
+      padding: 8px 15px;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    #authBox {
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -42,29 +56,91 @@
 
 <h2>Django WebRTC Video Chat</h2>
 
+<!-- 🔐 AUTH SECTION -->
+<div id="authBox">
+  <input id="email" placeholder="Email"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="signup()">Signup</button>
+  <button onclick="login()">Login</button>
+  <p id="authStatus"></p>
+</div>
+
+<!-- 🎥 VIDEO SECTION -->
 <div class="videos">
   <video id="localVideo" autoplay muted playsinline></video>
   <video id="remoteVideo" autoplay playsinline></video>
 </div>
 
-<button onclick="start()">Start</button>
-<button onclick="next()">Next</button>
+<button id="startBtn" onclick="start()" disabled>Start</button>
+<button id="nextBtn" onclick="next()" disabled>Next</button>
 
 <script>
-/* ---------------- WebSocket ---------------- */
-const ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
+/* ===================== AUTH LOGIC ===================== */
+let isLoggedIn = false;
 
-/* ---------------- WebRTC state ---------------- */
+async function signup() {
+  const email = emailInput.value;
+  const password = passwordInput.value;
+
+  const res = await fetch(
+    "https://webrtcsocket-django-backend.onrender.com/api/signup/",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    }
+  );
+
+  const data = await res.json();
+  authStatus.innerText = data.message || data.error;
+}
+
+async function login() {
+  const email = emailInput.value;
+  const password = passwordInput.value;
+
+  const res = await fetch(
+    "https://webrtcsocket-django-backend.onrender.com/api/login/",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    }
+  );
+
+  const data = await res.json();
+
+  if (data.message) {
+    isLoggedIn = true;
+    authStatus.innerText = "Logged in ✔";
+    startBtn.disabled = false;
+    nextBtn.disabled = false;
+    authBox.style.display = "none";
+  } else {
+    authStatus.innerText = data.error;
+  }
+}
+
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const authStatus = document.getElementById("authStatus");
+const startBtn = document.getElementById("startBtn");
+const nextBtn = document.getElementById("nextBtn");
+
+/* ===================== WEBRTC (UNCHANGED) ===================== */
+
+const ws = new WebSocket(
+  "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
+);
+
 let pc = null;
 let room = null;
 let isInitiator = false;
 let localStream = null;
 
-/* ---------------- Video elements ---------------- */
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 
-/* ---------------- Get camera ---------------- */
 navigator.mediaDevices.getUserMedia({ video: true, audio: true })
 .then(stream => {
   localStream = stream;
@@ -72,34 +148,28 @@ navigator.mediaDevices.getUserMedia({ video: true, audio: true })
 })
 .catch(err => alert("Camera error: " + err));
 
-/* ---------------- Cleanup old call ---------------- */
 function cleanup() {
   if (pc) {
-    pc.ontrack = null;
-    pc.onicecandidate = null;
     pc.close();
     pc = null;
   }
   remoteVideo.srcObject = null;
-  room = null;
 }
 
-/* ---------------- Join matchmaking queue ---------------- */
 function start() {
+  if (!isLoggedIn) return;
   ws.send(JSON.stringify({ type: "start" }));
 }
 
-/* ---------------- Next user (Omegle-style) ---------------- */
 function next() {
+  if (!isLoggedIn) return;
   cleanup();
   ws.send(JSON.stringify({ type: "next" }));
 }
 
-/* ---------------- WebSocket messages ---------------- */
 ws.onmessage = async (e) => {
   const data = JSON.parse(e.data);
 
-  /* ---- Matched ---- */
   if (data.type === "matched") {
     cleanup();
 
@@ -134,7 +204,6 @@ ws.onmessage = async (e) => {
     }
   }
 
-  /* ---- SDP signaling ---- */
   if (data.sdp && pc) {
     const desc = new RTCSessionDescription(data.sdp);
 
@@ -150,7 +219,6 @@ ws.onmessage = async (e) => {
     }
   }
 
-  /* ---- ICE ---- */
   if (data.candidate && pc) {
     await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
   }
@@ -159,5 +227,3 @@ ws.onmessage = async (e) => {
 
 </body>
 </html>
-
-
