@@ -13,9 +13,7 @@
       min-height: 100vh;
     }
 
-    h2 {
-      margin-top: 20px;
-    }
+    h2 { margin-top: 20px; }
 
     .videos {
       display: flex;
@@ -33,18 +31,15 @@
     }
 
     /* mirror only local video */
-    #localVideo {
-      transform: scaleX(-1);
-    }
+    #localVideo { transform: scaleX(-1); }
 
-    /* 🔐 AUTH BOX */
     #authBox {
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0,0,0,0.6);
       padding: 20px;
       width: 300px;
       margin: 30px auto;
       border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0, 255, 213, 0.3);
+      box-shadow: 0 0 20px rgba(0,255,213,0.3);
     }
 
     input {
@@ -54,7 +49,6 @@
       border-radius: 6px;
       border: none;
       outline: none;
-      font-size: 14px;
     }
 
     button {
@@ -63,44 +57,19 @@
       width: 100%;
       border-radius: 6px;
       border: none;
-      font-size: 15px;
       cursor: pointer;
-      transition: all 0.2s ease;
     }
 
-    button:hover {
-      transform: scale(1.03);
-    }
-
-    .signup-btn {
-      background: #00ffd5;
-      color: #000;
-      font-weight: bold;
-    }
-
-    .login-btn {
-      background: #ffaa00;
-      color: #000;
-      font-weight: bold;
-    }
-
-    .action-btn {
-      background: #00b3ff;
-      color: white;
-      width: 120px;
-      margin: 10px;
-    }
+    .signup-btn { background:#00ffd5; font-weight:bold; }
+    .login-btn { background:#ffaa00; font-weight:bold; }
+    .action-btn { background:#00b3ff; color:white; width:120px; margin:10px; }
 
     button:disabled {
       background: gray;
       cursor: not-allowed;
-      transform: none;
     }
 
-    #authStatus {
-      margin-top: 10px;
-      font-size: 14px;
-    }
+    #authStatus { margin-top: 10px; }
   </style>
 </head>
 
@@ -108,18 +77,16 @@
 
 <h2>Django WebRTC Video Chat</h2>
 
-<!-- 🔐 AUTH SECTION -->
+<!-- AUTH -->
 <div id="authBox">
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Password">
-
   <button class="signup-btn" onclick="signup()">Signup</button>
   <button class="login-btn" onclick="login()">Login</button>
-
   <p id="authStatus"></p>
 </div>
 
-<!-- 🎥 VIDEO SECTION -->
+<!-- VIDEO -->
 <div class="videos">
   <video id="localVideo" autoplay muted playsinline></video>
   <video id="remoteVideo" autoplay playsinline></video>
@@ -131,7 +98,7 @@
 </div>
 
 <script>
-/* ===================== AUTH ===================== */
+/* ================= AUTH ================= */
 let isLoggedIn = false;
 
 const emailInput = document.getElementById("email");
@@ -142,140 +109,114 @@ const nextBtn = document.getElementById("nextBtn");
 const authBox = document.getElementById("authBox");
 
 async function signup() {
-  const email = emailInput.value;
-  const password = passwordInput.value;
-
   const res = await fetch(
     "https://webrtcsocket-django-backend.onrender.com/api/signup/",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email: emailInput.value,
+        password: passwordInput.value
+      })
     }
   );
-
   const data = await res.json();
   authStatus.innerText = data.message || data.error;
-  authStatus.style.color = data.message ? "#00ffd5" : "#ff6b6b";
 }
 
 async function login() {
-  const email = emailInput.value;
-  const password = passwordInput.value;
-
   const res = await fetch(
     "https://webrtcsocket-django-backend.onrender.com/api/login/",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email: emailInput.value,
+        password: passwordInput.value
+      })
     }
   );
-
   const data = await res.json();
 
   if (data.message) {
     isLoggedIn = true;
     authStatus.innerText = "Logged in ✔";
-    authStatus.style.color = "#00ffd5";
     startBtn.disabled = false;
     nextBtn.disabled = false;
     authBox.style.display = "none";
   } else {
     authStatus.innerText = data.error;
-    authStatus.style.color = "#ff6b6b";
   }
 }
 
-/* ===================== WEBRTC ===================== */
-
+/* ================= WEBRTC ================= */
 const ws = new WebSocket(
   "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
 );
 
 let pc = null;
-let room = null;
-let isInitiator = false;
 let localStream = null;
 
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 
-navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-.then(stream => {
-  localStream = stream;
-  localVideo.srcObject = stream;
-})
-.catch(err => alert("Camera error: " + err));
+navigator.mediaDevices.getUserMedia({ video:true, audio:true })
+.then(s => { localStream = s; localVideo.srcObject = s; });
 
 function cleanup() {
-  if (pc) {
-    pc.close();
-    pc = null;
-  }
+  if (pc) pc.close();
+  pc = null;
   remoteVideo.srcObject = null;
 }
 
 function start() {
-  if (!isLoggedIn) return;
-  ws.send(JSON.stringify({ type: "start" }));
+  if (isLoggedIn) ws.send(JSON.stringify({ type:"start" }));
 }
 
 function next() {
   if (!isLoggedIn) return;
   cleanup();
-  ws.send(JSON.stringify({ type: "next" }));
+  ws.send(JSON.stringify({ type:"next" }));
 }
 
-ws.onmessage = async (e) => {
+ws.onmessage = async e => {
   const data = JSON.parse(e.data);
 
   if (data.type === "matched") {
     cleanup();
 
-    room = data.room;
-    isInitiator = data.initiator;
-
     pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
     });
 
-    localStream.getTracks().forEach(track =>
-      pc.addTrack(track, localStream)
-    );
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-    pc.ontrack = e => {
-      remoteVideo.srcObject = e.streams[0];
-    };
+    pc.ontrack = ev => remoteVideo.srcObject = ev.streams[0];
 
-    pc.onicecandidate = e => {
-      if (e.candidate) {
-        ws.send(JSON.stringify({
-          room,
-          candidate: e.candidate
-        }));
+    pc.onicecandidate = ev => {
+      if (ev.candidate) {
+        ws.send(JSON.stringify({ room:data.room, candidate:ev.candidate }));
       }
     };
 
-    if (isInitiator) {
+    if (data.initiator) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({ room, sdp: offer }));
+      ws.send(JSON.stringify({ room:data.room, sdp:offer }));
     }
   }
 
   if (data.sdp && pc) {
     const desc = new RTCSessionDescription(data.sdp);
-
     if (desc.type === "answer" && pc.signalingState !== "have-local-offer") return;
     if (desc.type === "offer" && pc.signalingState !== "stable") return;
 
     await pc.setRemoteDescription(desc);
 
     if (desc.type === "offer") {
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ room, sdp: answer }));
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      ws.send(JSON.stringify({ room:data.room, sdp:ans }));
     }
   }
 
