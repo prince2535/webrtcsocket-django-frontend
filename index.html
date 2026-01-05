@@ -109,22 +109,3 @@ async function login() {
     {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        email: emailInput.value,
-        password: passwordInput.value
-      })
-    }
-  );
-
-  const data = await res.json();
-
-  if (data.message) {
-    window.location.href = "video.html";
-  } else {
-    statusText.innerText = data.error;
-  }
-}
-</script>
-
-</body>
-</html>
