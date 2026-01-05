@@ -1,7 +1,6 @@
 {
   "routes": [
     { "src": "/", "dest": "/index.html" },
-    { "src": "/video", "dest": "/video.html" },
-    { "src": "/video.html", "dest": "/video.html" }
+    { "src": "/video", "dest": "/video.html" }
   ]
 }
