@@ -56,13 +56,10 @@
 
 <h2>Django WebRTC Video Chat</h2>
 
-<!-- 🔐 AUTH SECTION -->
 <div id="authBox">
   <input id="email" placeholder="Email"><br>
-
   <input id="password" type="password" placeholder="Password"><br>
 
-  <!-- 👁 SHOW PASSWORD (ONLY ADDITION) -->
   <label style="font-size:14px;">
     <input type="checkbox" onclick="togglePassword()"> Show Password
   </label><br>
@@ -72,7 +69,6 @@
   <p id="authStatus"></p>
 </div>
 
-<!-- 🎥 VIDEO SECTION -->
 <div class="videos">
   <video id="localVideo" autoplay muted playsinline></video>
   <video id="remoteVideo" autoplay playsinline></video>
@@ -82,36 +78,40 @@
 <button id="nextBtn" onclick="next()" disabled>Next</button>
 
 <script>
-/* ===================== AUTH LOGIC ===================== */
 let isLoggedIn = false;
 
-async function signup() {
-  const email = emailInput.value;
-  const password = passwordInput.value;
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const authStatus = document.getElementById("authStatus");
+const startBtn = document.getElementById("startBtn");
+const nextBtn = document.getElementById("nextBtn");
 
+async function signup() {
   const res = await fetch(
     "https://webrtcsocket-django-backend.onrender.com/api/signup/",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email: emailInput.value,
+        password: passwordInput.value
+      })
     }
   );
-
   const data = await res.json();
   authStatus.innerText = data.message || data.error;
 }
 
 async function login() {
-  const email = emailInput.value;
-  const password = passwordInput.value;
-
   const res = await fetch(
     "https://webrtcsocket-django-backend.onrender.com/api/login/",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email: emailInput.value,
+        password: passwordInput.value
+      })
     }
   );
 
@@ -128,19 +128,10 @@ async function login() {
   }
 }
 
-/* 👁 SHOW / HIDE PASSWORD (ONLY ADDITION) */
 function togglePassword() {
   passwordInput.type =
     passwordInput.type === "password" ? "text" : "password";
 }
-
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const authStatus = document.getElementById("authStatus");
-const startBtn = document.getElementById("startBtn");
-const nextBtn = document.getElementById("nextBtn");
-
-/* ===================== WEBRTC (UNCHANGED) ===================== */
 
 const ws = new WebSocket(
   "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
@@ -158,8 +149,7 @@ navigator.mediaDevices.getUserMedia({ video: true, audio: true })
 .then(stream => {
   localStream = stream;
   localVideo.srcObject = stream;
-})
-.catch(err => alert("Camera error: " + err));
+});
 
 function cleanup() {
   if (pc) {
@@ -220,9 +210,6 @@ ws.onmessage = async (e) => {
   if (data.sdp && pc) {
     const desc = new RTCSessionDescription(data.sdp);
 
-    if (desc.type === "answer" && pc.signalingState !== "have-local-offer") return;
-    if (desc.type === "offer" && pc.signalingState !== "stable") return;
-
     await pc.setRemoteDescription(desc);
 
     if (desc.type === "offer") {
@@ -232,5 +219,14 @@ ws.onmessage = async (e) => {
     }
   }
 
+  /* ✅ ONLY FIX */
   if (data.candidate && pc) {
-    await pc.addIceCand
+    await pc.addIceCandidate(
+      new RTCIceCandidate(data.candidate)
+    );
+  }
+};
+</script>
+
+</body>
+</html>
