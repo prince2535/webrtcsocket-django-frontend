@@ -26,7 +26,13 @@ video {
 #localVideo { transform: scaleX(-1); }
 input { padding:8px; margin:5px; width:220px; }
 button { padding:8px 15px; margin:5px; cursor:pointer; }
-#chatBox { height:120px; overflow:auto; border:1px solid #444; margin:10px; padding:5px; }
+#chatBox {
+  height:120px;
+  overflow:auto;
+  border:1px solid #444;
+  margin:10px;
+  padding:5px;
+}
 </style>
 </head>
 
@@ -113,11 +119,8 @@ async function login() {
   }
 }
 
-/* ===== WEBRTC ===== */
-const ws = new WebSocket(
-  "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
-);
-
+/* ===== WEBRTC STATE ===== */
+let ws;
 let pc = null;
 let room = null;
 let isInitiator = false;
@@ -126,25 +129,52 @@ let localStream = null;
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 
+/* ===== CAMERA ===== */
 navigator.mediaDevices.getUserMedia({ video:true, audio:true })
 .then(stream => {
   localStream = stream;
   localVideo.srcObject = stream;
 });
 
+/* ===== CLEANUP ===== */
 function cleanup() {
   if (pc) pc.close();
   pc = null;
   remoteVideo.srcObject = null;
 }
 
+/* ===== WEBSOCKET WITH AUTO RECONNECT ===== */
+function connectWS() {
+  ws = new WebSocket(
+    "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
+  );
+
+  ws.onopen = () => {
+    console.log("WebSocket connected");
+  };
+
+  ws.onclose = () => {
+    console.log("WebSocket closed, reconnecting...");
+    setTimeout(connectWS, 1000);
+  };
+
+  ws.onerror = () => {
+    ws.close();
+  };
+
+  ws.onmessage = handleMessage;
+}
+
+connectWS();
+
+/* ===== START / NEXT ===== */
 function start() {
-  if (!isLoggedIn) return;
+  if (!isLoggedIn || ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({ type:"start" }));
 }
 
 function next() {
-  if (!isLoggedIn) return;
+  if (!isLoggedIn || ws.readyState !== WebSocket.OPEN) return;
   cleanup();
   ws.send(JSON.stringify({ type:"next" }));
 }
@@ -157,7 +187,7 @@ function addMessage(sender, text) {
 }
 
 function sendMessage() {
-  if (!room || !chatInput.value) return;
+  if (!room || !chatInput.value || ws.readyState !== WebSocket.OPEN) return;
 
   ws.send(JSON.stringify({
     room: room,
@@ -169,8 +199,8 @@ function sendMessage() {
   chatInput.value = "";
 }
 
-/* ===== SIGNALING ===== */
-ws.onmessage = async (e) => {
+/* ===== SIGNALING HANDLER ===== */
+async function handleMessage(e) {
   const data = JSON.parse(e.data);
 
   if (data.type === "matched") {
@@ -220,7 +250,7 @@ ws.onmessage = async (e) => {
   if (data.type === "chat") {
     addMessage("Partner", data.text);
   }
-};
+}
 </script>
 
 </body>
