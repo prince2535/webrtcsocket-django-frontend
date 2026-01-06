@@ -143,28 +143,15 @@ function cleanup() {
   remoteVideo.srcObject = null;
 }
 
-/* ===== WEBSOCKET WITH AUTO RECONNECT ===== */
+/* ===== WEBSOCKET ===== */
 function connectWS() {
   ws = new WebSocket(
     "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
   );
 
-  ws.onopen = () => {
-    console.log("WebSocket connected");
-  };
-
-  ws.onclose = () => {
-    console.log("WebSocket closed, reconnecting...");
-    setTimeout(connectWS, 1000);
-  };
-
-  ws.onerror = () => {
-    ws.close();
-  };
-
   ws.onmessage = handleMessage;
+  ws.onclose = () => setTimeout(connectWS, 1000);
 }
-
 connectWS();
 
 /* ===== START / NEXT ===== */
@@ -187,19 +174,19 @@ function addMessage(sender, text) {
 }
 
 function sendMessage() {
-  if (!room || !chatInput.value || ws.readyState !== WebSocket.OPEN) return;
+  if (!room || !chatInput.value) return;
 
   ws.send(JSON.stringify({
-    room: room,
-    type: "chat",
-    text: chatInput.value
+    room,
+    type:"chat",
+    text:chatInput.value
   }));
 
   addMessage("Me", chatInput.value);
   chatInput.value = "";
 }
 
-/* ===== SIGNALING HANDLER ===== */
+/* ===== SIGNALING HANDLER (FIXED) ===== */
 async function handleMessage(e) {
   const data = JSON.parse(e.data);
 
@@ -234,17 +221,27 @@ async function handleMessage(e) {
     }
   }
 
+  /* ===== SDP FIX ===== */
   if (data.sdp && pc) {
-    await pc.setRemoteDescription(data.sdp);
-    if (data.sdp.type === "offer") {
+    const desc = new RTCSessionDescription(data.sdp);
+
+    if (desc.type === "answer" && pc.signalingState !== "have-local-offer") return;
+    if (desc.type === "offer" && pc.signalingState !== "stable") return;
+
+    await pc.setRemoteDescription(desc);
+
+    if (desc.type === "offer") {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       ws.send(JSON.stringify({ room, sdp:answer }));
     }
   }
 
-  if (data.candidate && pc) {
-    await pc.addIceCandidate(data.candidate);
+  /* ===== ICE FIX ===== */
+  if (data.candidate && pc && pc.remoteDescription) {
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    } catch {}
   }
 
   if (data.type === "chat") {
