@@ -44,7 +44,6 @@ video {
   border-radius:14px;
 }
 
-/* 👁️ Blur preview before connect */
 .blur {
   filter: blur(14px);
 }
@@ -91,7 +90,6 @@ button:disabled {
   height:16px;
 }
 
-/* 📱 Mobile-first */
 @media (max-width: 768px) {
   .videos {
     flex-direction:column;
@@ -154,7 +152,7 @@ let autoNextTimer = null;
 
 function setStatus(t){ statusText.innerText = t; }
 
-async function signup(){ /* unchanged */ }
+async function signup(){ }
 async function login(){
   isLoggedIn = true;
   authBox.style.display="none";
@@ -227,7 +225,13 @@ async function handleMessage(e){
     });
 
     localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
-    pc.ontrack=e=>remoteVideo.srcObject=e.streams[0];
+
+    /* ✅ FIX: mobile autoplay */
+    pc.ontrack = e => {
+      remoteVideo.srcObject = e.streams[0];
+      remoteVideo.play().catch(() => {});
+    };
+
     pc.onicecandidate=e=>e.candidate&&ws.send(JSON.stringify({room,candidate:e.candidate}));
 
     if(isInitiator){
