@@ -1,55 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Django WebRTC Chat</title>
+<meta charset="utf-8">
+<title>Django WebRTC Chat</title>
 
-  <style>
-    body {
-      background: #111;
-      color: white;
-      text-align: center;
-      font-family: Arial, sans-serif;
-    }
-
-    .videos {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-top: 20px;
-    }
-
-    video {
-      width: 45%;
-      height: 300px;
-      background: black;
-      border-radius: 10px;
-    }
-
-    /* mirror ONLY local video */
-    #localVideo {
-      transform: scaleX(-1);
-    }
-
-    input {
-      padding: 8px;
-      margin: 5px;
-      width: 220px;
-    }
-
-    button {
-      padding: 8px 15px;
-      margin: 5px;
-      cursor: pointer;
-    }
-  </style>
+<style>
+body {
+  background:#111;
+  color:white;
+  text-align:center;
+  font-family:Arial;
+}
+.videos {
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  margin-top:20px;
+}
+video {
+  width:45%;
+  height:300px;
+  background:black;
+  border-radius:10px;
+}
+#localVideo { transform: scaleX(-1); }
+input { padding:8px; margin:5px; width:220px; }
+button { padding:8px 15px; margin:5px; cursor:pointer; }
+#chatBox { height:120px; overflow:auto; border:1px solid #444; margin:10px; padding:5px; }
+</style>
 </head>
 
 <body>
 
 <h2>Django WebRTC Video Chat</h2>
 
-<!-- ================= AUTH ================= -->
+<!-- AUTH -->
 <div id="authBox">
   <input id="email" placeholder="Email"><br>
   <input id="password" type="password" placeholder="Password"><br>
@@ -58,7 +43,7 @@
   <p id="authStatus"></p>
 </div>
 
-<!-- ================= VIDEO ================= -->
+<!-- VIDEO -->
 <div class="videos">
   <video id="localVideo" autoplay muted playsinline></video>
   <video id="remoteVideo" autoplay playsinline></video>
@@ -67,63 +52,68 @@
 <button id="startBtn" onclick="start()" disabled>Start</button>
 <button id="nextBtn" onclick="next()" disabled>Next</button>
 
+<!-- CHAT -->
+<div>
+  <input id="chatInput" placeholder="Type message">
+  <button onclick="sendMessage()">Send</button>
+  <div id="chatBox"></div>
+</div>
+
 <script>
-/* ===================== GLOBAL DOM ===================== */
+/* ===== GLOBAL DOM ===== */
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const authStatus = document.getElementById("authStatus");
 const startBtn = document.getElementById("startBtn");
 const nextBtn = document.getElementById("nextBtn");
 const authBox = document.getElementById("authBox");
+const chatInput = document.getElementById("chatInput");
+const chatBox = document.getElementById("chatBox");
 
-/* ===================== AUTH STATE ===================== */
+/* ===== AUTH ===== */
 let isLoggedIn = false;
 
-/* ===================== AUTH FUNCTIONS ===================== */
 async function signup() {
-  const email = emailInput.value;
-  const password = passwordInput.value;
-
   const res = await fetch(
     "https://webrtcsocket-django-backend.onrender.com/api/signup/",
     {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        email:emailInput.value,
+        password:passwordInput.value
+      })
     }
   );
-
   const data = await res.json();
   authStatus.innerText = data.message || data.error;
 }
 
 async function login() {
-  const email = emailInput.value;
-  const password = passwordInput.value;
-
   const res = await fetch(
     "https://webrtcsocket-django-backend.onrender.com/api/login/",
     {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        email:emailInput.value,
+        password:passwordInput.value
+      })
     }
   );
-
   const data = await res.json();
 
   if (data.message) {
     isLoggedIn = true;
-    authStatus.innerText = "Logged in ✔";
+    authBox.style.display = "none";
     startBtn.disabled = false;
     nextBtn.disabled = false;
-    authBox.style.display = "none";
   } else {
     authStatus.innerText = data.error;
   }
 }
 
-/* ===================== WEBRTC ===================== */
+/* ===== WEBRTC ===== */
 const ws = new WebSocket(
   "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
 );
@@ -136,82 +126,99 @@ let localStream = null;
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 
-navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+navigator.mediaDevices.getUserMedia({ video:true, audio:true })
 .then(stream => {
   localStream = stream;
   localVideo.srcObject = stream;
 });
 
 function cleanup() {
-  if (pc) {
-    pc.close();
-    pc = null;
-  }
+  if (pc) pc.close();
+  pc = null;
   remoteVideo.srcObject = null;
 }
 
 function start() {
   if (!isLoggedIn) return;
-  ws.send(JSON.stringify({ type: "start" }));
+  ws.send(JSON.stringify({ type:"start" }));
 }
 
 function next() {
   if (!isLoggedIn) return;
   cleanup();
-  ws.send(JSON.stringify({ type: "next" }));
+  ws.send(JSON.stringify({ type:"next" }));
 }
 
+/* ===== CHAT ===== */
+function addMessage(sender, text) {
+  const p = document.createElement("p");
+  p.innerText = sender + ": " + text;
+  chatBox.appendChild(p);
+}
+
+function sendMessage() {
+  if (!room || !chatInput.value) return;
+
+  ws.send(JSON.stringify({
+    room: room,
+    type: "chat",
+    text: chatInput.value
+  }));
+
+  addMessage("Me", chatInput.value);
+  chatInput.value = "";
+}
+
+/* ===== SIGNALING ===== */
 ws.onmessage = async (e) => {
   const data = JSON.parse(e.data);
 
   if (data.type === "matched") {
     cleanup();
-
     room = data.room;
     isInitiator = data.initiator;
 
     pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
     });
 
-    localStream.getTracks().forEach(track =>
-      pc.addTrack(track, localStream)
+    localStream.getTracks().forEach(t =>
+      pc.addTrack(t, localStream)
     );
 
-    pc.ontrack = e => {
-      remoteVideo.srcObject = e.streams[0];
-    };
+    pc.ontrack = e => remoteVideo.srcObject = e.streams[0];
 
     pc.onicecandidate = e => {
       if (e.candidate) {
-        ws.send(JSON.stringify({ room, candidate: e.candidate }));
+        ws.send(JSON.stringify({
+          room,
+          candidate:e.candidate
+        }));
       }
     };
 
     if (isInitiator) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({ room, sdp: offer }));
+      ws.send(JSON.stringify({ room, sdp:offer }));
     }
   }
 
   if (data.sdp && pc) {
-    const desc = new RTCSessionDescription(data.sdp);
-
-    if (desc.type === "answer" && pc.signalingState !== "have-local-offer") return;
-    if (desc.type === "offer" && pc.signalingState !== "stable") return;
-
-    await pc.setRemoteDescription(desc);
-
-    if (desc.type === "offer") {
+    await pc.setRemoteDescription(data.sdp);
+    if (data.sdp.type === "offer") {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ room, sdp: answer }));
+      ws.send(JSON.stringify({ room, sdp:answer }));
     }
   }
 
   if (data.candidate && pc) {
-    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    await pc.addIceCandidate(data.candidate);
+  }
+
+  if (data.type === "chat") {
+    addMessage("Partner", data.text);
   }
 };
 </script>
