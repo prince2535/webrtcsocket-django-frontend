@@ -13,7 +13,6 @@ body {
   text-align:center;
   font-family:'Inter', Arial, sans-serif;
 }
-
 .glass {
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(14px);
@@ -23,41 +22,12 @@ body {
   max-width: 1100px;
   margin: 20px auto;
 }
-
-#statusText {
-  color:#00ffcc;
-  font-weight:600;
-  margin-top:6px;
-}
-
-.videos {
-  display:flex;
-  justify-content:center;
-  gap:14px;
-  margin-top:15px;
-}
-
-video {
-  width:45%;
-  height:320px;
-  background:black;
-  border-radius:14px;
-}
-
-.blur {
-  filter: blur(14px);
-}
-
+#statusText { color:#00ffcc; font-weight:600; }
+.videos { display:flex; justify-content:center; gap:14px; margin-top:15px; }
+video { width:45%; height:320px; background:black; border-radius:14px; }
+.blur { filter: blur(14px); }
 #localVideo { transform: scaleX(-1); }
-
-input {
-  padding:10px;
-  margin:6px;
-  width:220px;
-  border-radius:8px;
-  border:none;
-}
-
+input { padding:10px; margin:6px; width:220px; border-radius:8px; border:none; }
 button {
   padding:10px 18px;
   margin:6px;
@@ -68,12 +38,7 @@ button {
   background: linear-gradient(135deg, #00ffcc, #00b3ff);
   color:#000;
 }
-
-button:disabled {
-  opacity:0.4;
-  cursor:not-allowed;
-}
-
+button:disabled { opacity:0.4; cursor:not-allowed; }
 #chatBox {
   background: rgba(0,0,0,0.4);
   border-radius:10px;
@@ -83,27 +48,15 @@ button:disabled {
   overflow:auto;
   text-align:left;
 }
-
-#typing {
-  font-size:12px;
-  color:#aaa;
-  height:16px;
-}
-
-@media (max-width: 768px) {
-  .videos {
-    flex-direction:column;
-  }
-  video {
-    width:100%;
-    height:260px;
-  }
+#typing { font-size:12px; color:#aaa; height:16px; }
+@media (max-width:768px){
+  .videos{flex-direction:column;}
+  video{width:100%;height:260px;}
 }
 </style>
 </head>
 
 <body>
-
 <div class="glass">
 
 <h2>Django WebRTC Video Chat</h2>
@@ -112,9 +65,7 @@ button:disabled {
 <div id="authBox">
   <input id="email" placeholder="Email"><br>
   <input id="password" type="password" placeholder="Password"><br>
-  <button onclick="signup()">Signup</button>
   <button onclick="login()">Login</button>
-  <p id="authStatus"></p>
 </div>
 
 <div class="videos">
@@ -135,6 +86,7 @@ button:disabled {
 </div>
 
 <script>
+/* ===== STATE ===== */
 const statusText = document.getElementById("statusText");
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
@@ -145,52 +97,59 @@ const startBtn = document.getElementById("startBtn");
 const nextBtn = document.getElementById("nextBtn");
 const authBox = document.getElementById("authBox");
 
-let isLoggedIn = false;
-let ws, pc, room, isInitiator, localStream;
+let ws, pc = null, room = null, isInitiator = false;
+let localStream = null;
 let typingTimer = null;
 let autoNextTimer = null;
 
 function setStatus(t){ statusText.innerText = t; }
 
-async function signup(){ }
-async function login(){
-  isLoggedIn = true;
+/* ===== LOGIN MOCK ===== */
+function login(){
   authBox.style.display="none";
   startBtn.disabled=false;
   nextBtn.disabled=false;
   setStatus("Logged in");
 }
 
-navigator.mediaDevices.getUserMedia({video:true,audio:true})
+/* ===== MEDIA ===== */
+navigator.mediaDevices.getUserMedia({ video:true, audio:true })
 .then(s=>{
-  localStream=s;
-  localVideo.srcObject=s;
+  localStream = s;
+  localVideo.srcObject = s;
 });
 
+/* ===== WS ===== */
 function connectWS(){
-  ws=new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
-  ws.onmessage=handleMessage;
+  ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
+  ws.onmessage = handleMessage;
 }
 connectWS();
 
+/* ===== CONTROL ===== */
 function cleanup(){
   if(pc) pc.close();
-  pc=null;
-  remoteVideo.srcObject=null;
+  pc = null;
+  remoteVideo.srcObject = null;
   clearTimeout(autoNextTimer);
 }
 
 function start(){
+  if(ws.readyState !== WebSocket.OPEN){
+    setStatus("WebSocket not ready");
+    return;
+  }
   setStatus("Searching...");
-  ws.send(JSON.stringify({type:"start"}));
+  ws.send(JSON.stringify({ type:"start" }));
 }
 
 function next(){
   cleanup();
   setStatus("Searching...");
-  ws.send(JSON.stringify({type:"next"}));
+  ws.send(JSON.stringify({ type:"next" }));
 }
 
+/* ===== CHAT ===== */
 function addMessage(who,text){
   const p=document.createElement("p");
   p.innerText=who+": "+text;
@@ -198,71 +157,91 @@ function addMessage(who,text){
 }
 
 function sendMessage(){
-  if(!room||!chatInput.value) return;
-  ws.send(JSON.stringify({room,type:"chat",text:chatInput.value}));
-  addMessage("Me",chatInput.value);
+  if(!room || !chatInput.value) return;
+  ws.send(JSON.stringify({ room, type:"chat", text:chatInput.value }));
+  addMessage("Me", chatInput.value);
   chatInput.value="";
 }
 
 function sendTyping(){
-  ws.send(JSON.stringify({room,type:"typing"}));
+  if(!room) return;
+  ws.send(JSON.stringify({ room, type:"typing" }));
 }
 
+/* ===== SIGNALING ===== */
 async function handleMessage(e){
-  const d=JSON.parse(e.data);
+  const d = JSON.parse(e.data);
 
-  if(d.type==="matched"){
+  if(d.type === "matched"){
     cleanup();
-    room=d.room;
-    isInitiator=d.initiator;
+    room = d.room;
+    isInitiator = d.initiator;
     localVideo.classList.remove("blur");
     setStatus("Connected");
 
-    autoNextTimer=setTimeout(next,60000);
+    autoNextTimer = setTimeout(next, 60000);
 
-    pc=new RTCPeerConnection({
-      iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+    if(!localStream || localStream.getTracks().length === 0){
+      console.error("No local tracks");
+      return;
+    }
+
+    pc = new RTCPeerConnection({
+      iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
     });
 
-    localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+    localStream.getTracks().forEach(t=>{
+      console.log("Adding track:", t.kind);
+      pc.addTrack(t, localStream);
+    });
 
-    /* ✅ FIX: mobile autoplay */
-    pc.ontrack = e => {
+    pc.ontrack = e=>{
+      console.log("Remote track received");
       remoteVideo.srcObject = e.streams[0];
-      remoteVideo.play().catch(() => {});
+      remoteVideo.muted = false;
+      remoteVideo.playsInline = true;
+      remoteVideo.play().catch(()=>{});
     };
 
-    pc.onicecandidate=e=>e.candidate&&ws.send(JSON.stringify({room,candidate:e.candidate}));
+    pc.onicecandidate = e=>{
+      if(e.candidate){
+        ws.send(JSON.stringify({ room, candidate:e.candidate }));
+      }
+    };
 
     if(isInitiator){
-      const offer=await pc.createOffer();
+      if(!localStream || localStream.getTracks().length === 0){
+        console.error("Delaying offer");
+        setTimeout(start, 500);
+        return;
+      }
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({room,sdp:offer}));
+      ws.send(JSON.stringify({ room, sdp:offer }));
     }
   }
 
-  if(d.sdp&&pc){
+  if(d.sdp && pc){
     await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
-    if(d.sdp.type==="offer"){
-      const ans=await pc.createAnswer();
+    if(d.sdp.type === "offer"){
+      const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
-      ws.send(JSON.stringify({room,sdp:ans}));
+      ws.send(JSON.stringify({ room, sdp:ans }));
     }
   }
 
-  if(d.candidate&&pc){
-    try{await pc.addIceCandidate(new RTCIceCandidate(d.candidate));}catch{}
+  if(d.candidate && pc && pc.remoteDescription){
+    try{ await pc.addIceCandidate(new RTCIceCandidate(d.candidate)); }catch{}
   }
 
-  if(d.type==="chat") addMessage("Partner",d.text);
+  if(d.type === "chat") addMessage("Partner", d.text);
 
-  if(d.type==="typing"){
+  if(d.type === "typing"){
     typingDiv.innerText="Partner typing...";
     clearTimeout(typingTimer);
     typingTimer=setTimeout(()=>typingDiv.innerText="",1500);
   }
 }
 </script>
-
 </body>
 </html>
