@@ -97,7 +97,8 @@ const startBtn = document.getElementById("startBtn");
 const nextBtn = document.getElementById("nextBtn");
 const authBox = document.getElementById("authBox");
 
-let ws, pc = null, room = null, isInitiator = false;
+let ws, wsReady = false;
+let pc = null, room = null, isInitiator = false;
 let localStream = null;
 let typingTimer = null;
 let autoNextTimer = null;
@@ -122,6 +123,21 @@ navigator.mediaDevices.getUserMedia({ video:true, audio:true })
 /* ===== WS ===== */
 function connectWS(){
   ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
+
+  ws.onopen = () => {
+    wsReady = true;
+    console.log("WebSocket OPEN");
+    setStatus("Connected to server");
+  };
+
+  ws.onclose = () => {
+    wsReady = false;
+    console.log("WebSocket CLOSED");
+    setStatus("Server disconnected");
+  };
+
+  ws.onerror = e => console.error("WebSocket error", e);
+
   ws.onmessage = handleMessage;
 }
 connectWS();
@@ -135,15 +151,13 @@ function cleanup(){
 }
 
 function start(){
-  if(ws.readyState !== WebSocket.OPEN){
-    setStatus("WebSocket not ready");
-    return;
-  }
+  if(!wsReady) return setStatus("WebSocket not ready");
   setStatus("Searching...");
   ws.send(JSON.stringify({ type:"start" }));
 }
 
 function next(){
+  if(!wsReady) return setStatus("WebSocket not ready");
   cleanup();
   setStatus("Searching...");
   ws.send(JSON.stringify({ type:"next" }));
@@ -181,40 +195,26 @@ async function handleMessage(e){
 
     autoNextTimer = setTimeout(next, 60000);
 
-    if(!localStream || localStream.getTracks().length === 0){
-      console.error("No local tracks");
-      return;
-    }
-
     pc = new RTCPeerConnection({
       iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
     });
 
-    localStream.getTracks().forEach(t=>{
-      console.log("Adding track:", t.kind);
-      pc.addTrack(t, localStream);
-    });
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-    pc.ontrack = e=>{
-      console.log("Remote track received");
+    pc.ontrack = e => {
       remoteVideo.srcObject = e.streams[0];
       remoteVideo.muted = false;
       remoteVideo.playsInline = true;
       remoteVideo.play().catch(()=>{});
     };
 
-    pc.onicecandidate = e=>{
+    pc.onicecandidate = e => {
       if(e.candidate){
         ws.send(JSON.stringify({ room, candidate:e.candidate }));
       }
     };
 
     if(isInitiator){
-      if(!localStream || localStream.getTracks().length === 0){
-        console.error("Delaying offer");
-        setTimeout(start, 500);
-        return;
-      }
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       ws.send(JSON.stringify({ room, sdp:offer }));
@@ -230,7 +230,7 @@ async function handleMessage(e){
     }
   }
 
-  if(d.candidate && pc && pc.remoteDescription){
+  if(d.candidate && pc){
     try{ await pc.addIceCandidate(new RTCIceCandidate(d.candidate)); }catch{}
   }
 
