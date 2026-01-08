@@ -10,347 +10,259 @@
 body {
   background:#0f0f0f;
   color:white;
+  text-align:center;
   font-family:'Inter', Arial, sans-serif;
-  margin:0;
 }
-
 .glass {
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(14px);
-  border-radius: 20px;
+  border-radius: 18px;
   padding: 20px;
   box-shadow: 0 0 40px rgba(0,0,0,0.7);
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 20px auto;
 }
-
-h2 { margin:5px 0; }
-
-#statusText {
-  color:#00ffcc;
-  font-weight:600;
-  margin-bottom:10px;
-}
-
-/* ===== VIDEO ===== */
-.videos {
-  display:flex;
-  gap:16px;
-  margin-top:15px;
-}
-
-.video-wrap {
-  position:relative;
-  width:50%;
-}
-
-video {
-  width:100%;
-  height:320px;
-  background:black;
-  border-radius:16px;
-}
-
-.blur {
-  filter: blur(14px);
-}
-
+#statusText { color:#00ffcc; font-weight:600; }
+.videos { display:flex; justify-content:center; gap:14px; margin-top:15px; }
+video { width:45%; height:320px; background:black; border-radius:14px; }
+.blur { filter: blur(14px); }
 #localVideo { transform: scaleX(-1); }
-
-/* ===== CONTROLS ===== */
-.controls {
-  display:flex;
-  justify-content:center;
-  gap:12px;
-  margin:12px 0;
-}
-
-.control-btn {
-  background: rgba(255,255,255,0.1);
-  border:none;
-  border-radius:50%;
-  width:48px;
-  height:48px;
-  cursor:pointer;
-  color:#00ffcc;
-  font-size:18px;
-}
-
-.control-btn:hover {
-  background: rgba(0,255,204,0.2);
-}
-
-/* ===== CHAT ===== */
-.chat {
-  background:#0b0b0b;
-  border-radius:14px;
-  margin-top:15px;
-  padding:10px;
-  height:200px;
-  display:flex;
-  flex-direction:column;
-}
-
-#chatBox {
-  flex:1;
-  overflow:auto;
-  font-size:14px;
-}
-
-.msg {
-  margin:6px 0;
-  max-width:70%;
-  padding:8px 12px;
-  border-radius:12px;
-}
-
-.me {
-  background:#00ffcc;
-  color:black;
-  align-self:flex-end;
-}
-
-.partner {
-  background:#222;
-  color:white;
-  align-self:flex-start;
-}
-
-.chat-input {
-  display:flex;
-  gap:8px;
-  margin-top:6px;
-}
-
-.chat-input input {
-  flex:1;
-  padding:10px;
-  border-radius:20px;
-  border:none;
-}
-
-.chat-input button {
-  padding:10px 16px;
-  border-radius:20px;
-  border:none;
-  background:#00ffcc;
-  font-weight:700;
-  cursor:pointer;
-}
-
-#typing {
-  font-size:12px;
-  color:#aaa;
-  height:16px;
-}
-
-/* ===== AUTH ===== */
-#authBox input {
-  padding:10px;
-  width:220px;
-  border-radius:8px;
-  border:none;
-  margin:5px 0;
-}
-
-#authBox button {
+input { padding:10px; margin:6px; width:220px; border-radius:8px; border:none; }
+button {
   padding:10px 18px;
-  border-radius:20px;
-  border:none;
-  background:#00ffcc;
-  font-weight:700;
+  margin:6px;
   cursor:pointer;
+  border-radius:30px;
+  border:none;
+  font-weight:700;
+  background: linear-gradient(135deg, #00ffcc, #00b3ff);
+  color:#000;
 }
-
-/* ===== MOBILE ===== */
-@media(max-width:768px){
-  .videos { flex-direction:column; }
-  .video-wrap { width:100%; }
-  video { height:260px; }
+button:disabled { opacity:0.4; cursor:not-allowed; }
+#chatBox {
+  background: rgba(0,0,0,0.4);
+  border-radius:10px;
+  margin-top:8px;
+  padding:8px;
+  height:120px;
+  overflow:auto;
+  text-align:left;
+}
+#typing { font-size:12px; color:#aaa; height:16px; }
+@media (max-width:768px){
+  .videos{flex-direction:column;}
+  video{width:100%;height:260px;}
 }
 </style>
 </head>
 
 <body>
-
 <div class="glass">
-  <h2>Django WebRTC Video Chat</h2>
-  <div id="statusText">Ready</div>
 
-  <!-- AUTH -->
-  <div id="authBox">
-    <input id="email" placeholder="Email"><br>
-    <input id="password" type="password" placeholder="Password"><br>
-    <button onclick="login()">Login</button>
-  </div>
+<h2>Django WebRTC Video Chat</h2>
+<p id="statusText">Ready</p>
 
-  <!-- VIDEO -->
-  <div class="videos">
-    <div class="video-wrap">
-      <video id="localVideo" class="blur" autoplay muted playsinline></video>
-    </div>
-    <div class="video-wrap">
-      <video id="remoteVideo" autoplay playsinline></video>
-    </div>
-  </div>
+<div id="authBox">
+  <input id="email" placeholder="Email"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+</div>
 
-  <!-- CONTROLS -->
-  <div class="controls">
-    <button class="control-btn" onclick="toggleMic()">🎤</button>
-    <button class="control-btn" onclick="toggleCam()">📷</button>
-    <button class="control-btn" onclick="switchCamera()">🔄</button>
-    <button class="control-btn" onclick="start()">▶</button>
-    <button class="control-btn" onclick="next()">⏭</button>
-  </div>
+<div class="videos">
+  <video id="localVideo" class="blur" autoplay muted playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+</div>
 
-  <!-- CHAT -->
-  <div class="chat">
-    <div id="chatBox"></div>
-    <div id="typing"></div>
-    <div class="chat-input">
-      <input id="chatInput" placeholder="Type message…" oninput="sendTyping()">
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
+<button id="startBtn" onclick="start()" disabled>Start</button>
+<button id="nextBtn" onclick="next()" disabled>Next</button>
+
+<div>
+  <input id="chatInput" placeholder="Type message" oninput="sendTyping()">
+  <button onclick="sendMessage()">Send</button>
+  <div id="typing"></div>
+  <div id="chatBox"></div>
+</div>
+
 </div>
 
 <script>
-let ws, pc, room, isInitiator;
-let localStream = null;
-let currentFacing = "user";
-let typingTimer = null;
-
+/* ===== STATE ===== */
+const statusText = document.getElementById("statusText");
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 const chatBox = document.getElementById("chatBox");
-const chatInput = document.getElementById("chatInput");
 const typingDiv = document.getElementById("typing");
-const statusText = document.getElementById("statusText");
+const chatInput = document.getElementById("chatInput");
+const startBtn = document.getElementById("startBtn");
+const nextBtn = document.getElementById("nextBtn");
 const authBox = document.getElementById("authBox");
+
+let ws, wsReady = false;
+let pc = null, room = null, isInitiator = false;
+let localStream = null;
+let typingTimer = null;
+let autoNextTimer = null;
+
+function setStatus(t){ statusText.innerText = t; }
 
 /* ===== LOGIN (mock) ===== */
 function login(){
   authBox.style.display="none";
-  statusText.innerText="Logged in";
+  startBtn.disabled=false;
+  nextBtn.disabled=false;
+  setStatus("Logged in");
 }
 
-/* ===== MEDIA ===== */
-async function initMedia(){
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video:{ facingMode: currentFacing },
-    audio:true
-  });
-  localVideo.srcObject = localStream;
-}
-initMedia();
+/* ===== MEDIA (🔑 AUDIO FIX ADDED HERE) ===== */
+navigator.mediaDevices.getUserMedia({
+  video: true,
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  }
+})
+.then(stream=>{
+  localStream = stream;
+  localVideo.srcObject = stream;
 
-/* ===== WS ===== */
-ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
-ws.onmessage = handleMessage;
+  console.log(
+    "Local audio tracks:",
+    localStream.getAudioTracks().map(t => t.readyState)
+  );
+})
+.catch(err=>{
+  alert("Camera/Mic permission denied");
+  console.error(err);
+});
 
-/* ===== CONTROLS ===== */
-function toggleMic(){
-  localStream.getAudioTracks().forEach(t=>t.enabled=!t.enabled);
-}
-function toggleCam(){
-  localStream.getVideoTracks().forEach(t=>t.enabled=!t.enabled);
-}
-async function switchCamera(){
-  currentFacing = currentFacing==="user" ? "environment" : "user";
-  if(localStream) localStream.getTracks().forEach(t=>t.stop());
-  await initMedia();
-}
+/* ===== WEBSOCKET ===== */
+function connectWS(){
+  ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
 
-/* ===== START / NEXT ===== */
-function start(){
-  ws.send(JSON.stringify({type:"start"}));
-}
-function next(){
-  cleanup();
-  ws.send(JSON.stringify({type:"next"}));
-}
+  ws.onopen = () => {
+    wsReady = true;
+    setStatus("Connected to server");
+  };
 
-/* ===== CLEANUP ===== */
+  ws.onclose = () => {
+    wsReady = false;
+    setStatus("Server disconnected");
+  };
+
+  ws.onerror = e => console.error("WebSocket error", e);
+
+  ws.onmessage = handleMessage;
+}
+connectWS();
+
+/* ===== CONTROL ===== */
 function cleanup(){
   if(pc) pc.close();
-  pc=null;
-  remoteVideo.srcObject=null;
+  pc = null;
+  remoteVideo.srcObject = null;
+  clearTimeout(autoNextTimer);
+}
+
+function start(){
+  if(!wsReady) return setStatus("WebSocket not ready");
+  setStatus("Searching...");
+  ws.send(JSON.stringify({ type:"start" }));
+}
+
+function next(){
+  if(!wsReady) return setStatus("WebSocket not ready");
+  cleanup();
+  setStatus("Searching...");
+  ws.send(JSON.stringify({ type:"next" }));
 }
 
 /* ===== CHAT ===== */
-function addMsg(w,t){
-  const d=document.createElement("div");
-  d.className="msg "+(w==="Me"?"me":"partner");
-  d.innerText=t;
-  chatBox.appendChild(d);
-  chatBox.scrollTop=chatBox.scrollHeight;
+function addMessage(who,text){
+  const p=document.createElement("p");
+  p.innerText=who+": "+text;
+  chatBox.appendChild(p);
 }
+
 function sendMessage(){
-  if(!room||!chatInput.value) return;
-  ws.send(JSON.stringify({room,type:"chat",text:chatInput.value}));
-  addMsg("Me",chatInput.value);
+  if(!room || !chatInput.value) return;
+  ws.send(JSON.stringify({ room, type:"chat", text:chatInput.value }));
+  addMessage("Me", chatInput.value);
   chatInput.value="";
 }
+
 function sendTyping(){
   if(!room) return;
-  ws.send(JSON.stringify({room,type:"typing"}));
+  ws.send(JSON.stringify({ room, type:"typing" }));
 }
 
 /* ===== SIGNALING ===== */
 async function handleMessage(e){
-  const d=JSON.parse(e.data);
+  const d = JSON.parse(e.data);
 
-  if(d.type==="matched"){
+  if(d.type === "matched"){
     cleanup();
-    room=d.room;
-    isInitiator=d.initiator;
+    room = d.room;
+    isInitiator = d.initiator;
     localVideo.classList.remove("blur");
-    statusText.innerText="Connected";
+    setStatus("Connected");
 
-    pc=new RTCPeerConnection({
-      iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+    autoNextTimer = setTimeout(next, 60000);
+
+    pc = new RTCPeerConnection({
+      iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
     });
 
-    localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-    pc.ontrack=e=>{
-      remoteVideo.srcObject=e.streams[0];
-      remoteVideo.play().catch(()=>{});
+    pc.ontrack = e => {
+      console.log(
+        "Remote tracks:",
+        e.streams[0].getTracks().map(t => t.kind)
+      );
+
+      remoteVideo.srcObject = e.streams[0];
+      remoteVideo.muted = false;
+      remoteVideo.playsInline = true;
+
+      const p = remoteVideo.play();
+      if (p) p.catch(()=>{});
     };
 
-    pc.onicecandidate=e=>{
-      if(e.candidate) ws.send(JSON.stringify({room,candidate:e.candidate}));
+    pc.onicecandidate = e => {
+      if(e.candidate){
+        ws.send(JSON.stringify({ room, candidate:e.candidate }));
+      }
     };
 
     if(isInitiator){
-      const offer=await pc.createOffer();
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({room,sdp:offer}));
+      ws.send(JSON.stringify({ room, sdp:offer }));
     }
   }
 
   if(d.sdp && pc){
     await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
-    if(d.sdp.type==="offer"){
-      const ans=await pc.createAnswer();
+    if(d.sdp.type === "offer"){
+      const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
-      ws.send(JSON.stringify({room,sdp:ans}));
+      ws.send(JSON.stringify({ room, sdp:ans }));
     }
   }
 
   if(d.candidate && pc){
-    try{await pc.addIceCandidate(d.candidate);}catch{}
+    try{ await pc.addIceCandidate(new RTCIceCandidate(d.candidate)); }catch{}
   }
 
-  if(d.type==="chat") addMsg("Partner",d.text);
+  if(d.type === "chat") addMessage("Partner", d.text);
 
-  if(d.type==="typing"){
-    typingDiv.innerText="Partner typing…";
+  if(d.type === "typing"){
+    typingDiv.innerText="Partner typing...";
     clearTimeout(typingTimer);
-    typingTimer=setTimeout(()=>typingDiv.innerText="",1200);
+    typingTimer=setTimeout(()=>typingDiv.innerText="",1500);
   }
 }
 </script>
-
 </body>
 </html>
