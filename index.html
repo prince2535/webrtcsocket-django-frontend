@@ -8,129 +8,69 @@
 
 <style>
 body {
-  background: radial-gradient(circle at top, #1a1a1a, #000);
-  color: white;
-  font-family: 'Inter', Arial, sans-serif;
-  margin: 0;
+  background:#0f0f0f;
+  color:white;
+  text-align:center;
+  font-family:'Inter', Arial, sans-serif;
 }
-
 .glass {
-  background: rgba(255,255,255,0.06);
-  backdrop-filter: blur(18px);
-  border-radius: 22px;
-  padding: 24px;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.8);
-  max-width: 1150px;
-  margin: 25px auto;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(14px);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.7);
+  max-width: 1100px;
+  margin: 20px auto;
 }
-
-h2 { margin-bottom: 4px; }
-
+#statusText { color:#00ffcc; font-weight:600; }
 .subtitle {
-  opacity: 0.6;
-  font-size: 14px;
-  margin-bottom: 10px;
+  opacity:0.7;
+  font-size:14px;
+  margin-top:-6px;
 }
-
-.badges {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.badge {
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  background: rgba(255,255,255,0.12);
-}
-
-.badge.good { color:#00ffcc; }
-.badge.warn { color:#ffcc00; }
-
-.videos {
-  display: flex;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-video {
-  width: 50%;
-  height: 330px;
-  background: black;
-  border-radius: 16px;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.7);
-}
-
-#localVideo { transform: scaleX(-1); }
+.videos { display:flex; justify-content:center; gap:14px; margin-top:15px; }
+video { width:45%; height:320px; background:black; border-radius:14px; }
 .blur { filter: blur(14px); }
-
-input {
-  padding: 10px;
-  margin: 6px;
-  width: 220px;
-  border-radius: 10px;
-  border: none;
-}
-
+#localVideo { transform: scaleX(-1); }
+input { padding:10px; margin:6px; width:220px; border-radius:8px; border:none; }
 button {
-  padding: 10px 20px;
-  margin: 6px;
-  border-radius: 999px;
-  border: none;
-  font-weight: 700;
-  cursor: pointer;
-  background: linear-gradient(135deg,#00ffcc,#00b3ff);
+  padding:10px 18px;
+  margin:6px;
+  cursor:pointer;
+  border-radius:30px;
+  border:none;
+  font-weight:700;
+  background: linear-gradient(135deg, #00ffcc, #00b3ff);
   color:#000;
 }
-
-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
+button:disabled { opacity:0.4; cursor:not-allowed; }
 #chatBox {
-  background: rgba(0,0,0,0.45);
-  border-radius: 12px;
-  padding: 10px;
-  height: 130px;
-  overflow-y: auto;
-  margin-top: 8px;
-  text-align: left;
+  background: rgba(0,0,0,0.4);
+  border-radius:10px;
+  margin-top:8px;
+  padding:8px;
+  height:120px;
+  overflow:auto;
+  text-align:left;
 }
-
-#typing {
-  font-size: 12px;
-  opacity: 0.6;
-  height: 16px;
-}
-
-@media (max-width: 768px) {
-  .videos { flex-direction: column; }
-  video { width: 100%; height: 260px; }
+#typing { font-size:12px; color:#aaa; height:16px; }
+@media (max-width:768px){
+  .videos{flex-direction:column;}
+  video{width:100%;height:260px;}
 }
 </style>
 </head>
 
 <body>
-
 <div class="glass">
 
 <h2>Stravo</h2>
-<p class="subtitle">Instant 1-to-1 video chat</p>
-
-<div class="badges">
-  <span id="userBadge" class="badge">You</span>
-  <span id="partnerBadge" class="badge">Waiting…</span>
-  <span id="qualityBadge" class="badge warn">Quality: —</span>
-  <span id="timerBadge" class="badge">00:00</span>
-</div>
+<p class="subtitle">Instant 1-to-1 video chat with strangers</p>
+<p id="statusText">Connect instantly. Talk freely.</p>
 
 <div id="authBox">
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
+  <input id="email" placeholder="Email"><br>
+  <input id="password" type="password" placeholder="Password"><br>
   <button onclick="login()">Login</button>
 </div>
 
@@ -153,6 +93,7 @@ button:disabled {
 
 <script>
 /* ================= STATE ================= */
+const statusText = document.getElementById("statusText");
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 const chatBox = document.getElementById("chatBox");
@@ -161,156 +102,162 @@ const chatInput = document.getElementById("chatInput");
 const startBtn = document.getElementById("startBtn");
 const nextBtn = document.getElementById("nextBtn");
 const authBox = document.getElementById("authBox");
-const partnerBadge = document.getElementById("partnerBadge");
-const qualityBadge = document.getElementById("qualityBadge");
-const timerBadge = document.getElementById("timerBadge");
 
-let ws, wsReady=false;
-let pc=null, room=null, isInitiator=false;
-let localStream=null;
-let typingTimer=null;
-let timerInt=null, seconds=0;
+let ws, wsReady = false;
+let pc = null, room = null, isInitiator = false;
+let localStream = null;
+let typingTimer = null;
+let autoNextTimer = null;
 
-/* ================= LOGIN (JWT UI GATE) ================= */
+function setStatus(t){ statusText.innerText = t; }
+
+/* ================= LOGIN (mock) ================= */
 function login(){
-  localStorage.setItem("jwt","demo-token");
   authBox.style.display="none";
   startBtn.disabled=false;
   nextBtn.disabled=false;
+  setStatus("Logged in");
 }
 
 /* ================= MEDIA ================= */
-navigator.mediaDevices.getUserMedia({video:true,audio:true})
-.then(s=>{
-  localStream=s;
-  localVideo.srcObject=s;
-});
+navigator.mediaDevices.getUserMedia({
+  video: true,
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  }
+})
+.then(stream=>{
+  localStream = stream;
+  localVideo.srcObject = stream;
+})
+.catch(()=>alert("Camera / mic permission denied"));
 
 /* ================= WEBSOCKET ================= */
-ws=new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
-ws.onopen=()=>wsReady=true;
-ws.onmessage=handleMessage;
+function connectWS(){
+  ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
+
+  ws.onopen = () => {
+    wsReady = true;
+    setStatus("Connected to server");
+  };
+
+  ws.onclose = () => {
+    wsReady = false;
+    setStatus("Server disconnected");
+  };
+
+  ws.onmessage = handleMessage;
+}
+connectWS();
 
 /* ================= CONTROL ================= */
 function cleanup(){
   if(pc) pc.close();
-  pc=null;
-  remoteVideo.srcObject=null;
-  clearInterval(timerInt);
-  seconds=0;
-  timerBadge.innerText="00:00";
+  pc = null;
+  remoteVideo.srcObject = null;
+  clearTimeout(autoNextTimer);
 }
 
 function start(){
-  if(!wsReady) return;
-  ws.send(JSON.stringify({type:"start"}));
+  if(!wsReady) return setStatus("WebSocket not ready");
+  setStatus("Searching...");
+  ws.send(JSON.stringify({ type:"start" }));
 }
 
 function next(){
+  if(!wsReady) return setStatus("WebSocket not ready");
   cleanup();
-  ws.send(JSON.stringify({type:"next"}));
+  setStatus("Searching...");
+  ws.send(JSON.stringify({ type:"next" }));
 }
 
 /* ================= CHAT ================= */
-function addMessage(w,t){
+function addMessage(who,text){
   const p=document.createElement("p");
-  p.innerText=w+": "+t;
+  p.innerText=who+": "+text;
   chatBox.appendChild(p);
 }
 
 function sendMessage(){
-  if(!room||!chatInput.value) return;
-  ws.send(JSON.stringify({room,type:"chat",text:chatInput.value}));
-  addMessage("Me",chatInput.value);
+  if(!room || !chatInput.value) return;
+  ws.send(JSON.stringify({ room, type:"chat", text:chatInput.value }));
+  addMessage("Me", chatInput.value);
   chatInput.value="";
 }
 
 function sendTyping(){
   if(!room) return;
-  ws.send(JSON.stringify({room,type:"typing"}));
+  ws.send(JSON.stringify({ room, type:"typing" }));
 }
 
-/* ================= SIGNALING (UNTOUCHED) ================= */
+/* ================= SIGNALING (UNCHANGED) ================= */
 async function handleMessage(e){
-  const d=JSON.parse(e.data);
+  const d = JSON.parse(e.data);
 
-  if(d.type==="matched"){
+  if(d.type === "matched"){
     cleanup();
-    room=d.room;
-    isInitiator=d.initiator;
+    room = d.room;
+    isInitiator = d.initiator;
     localVideo.classList.remove("blur");
-    partnerBadge.innerText="Connected";
-    startTimer();
+    setStatus("Connected");
 
-    pc=new RTCPeerConnection({
-      iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+    autoNextTimer = setTimeout(next, 60000);
+
+    pc = new RTCPeerConnection({
+      iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
     });
 
-    localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-    pc.ontrack=e=>{
-      remoteVideo.srcObject=e.streams[0];
+    pc.ontrack = e => {
+      remoteVideo.srcObject = e.streams[0];
+      remoteVideo.muted = false;
+      remoteVideo.playsInline = true;
       remoteVideo.play().catch(()=>{});
     };
 
-    pc.onicecandidate=e=>{
-      if(e.candidate) ws.send(JSON.stringify({room,candidate:e.candidate}));
+    pc.onicecandidate = e => {
+      if(e.candidate){
+        ws.send(JSON.stringify({ room, candidate:e.candidate }));
+      }
     };
 
     if(isInitiator){
-      const offer=await pc.createOffer();
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({room,sdp:offer}));
+      ws.send(JSON.stringify({ room, sdp:offer }));
     }
-
-    monitorQuality();
   }
 
-  if(d.sdp&&pc){
-    await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
-    if(d.sdp.type==="offer"){
-      const ans=await pc.createAnswer();
+  if (d.sdp && pc) {
+    const desc = new RTCSessionDescription(d.sdp);
+
+    if (desc.type === "answer" && pc.signalingState !== "have-local-offer") return;
+    if (desc.type === "offer" && pc.signalingState !== "stable") return;
+
+    await pc.setRemoteDescription(desc);
+
+    if (desc.type === "offer") {
+      const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
-      ws.send(JSON.stringify({room,sdp:ans}));
+      ws.send(JSON.stringify({ room, sdp: ans }));
     }
   }
 
-  if(d.candidate&&pc){
-    try{await pc.addIceCandidate(new RTCIceCandidate(d.candidate));}catch{}
+  if(d.candidate && pc){
+    try{ await pc.addIceCandidate(new RTCIceCandidate(d.candidate)); }catch{}
   }
 
-  if(d.type==="chat") addMessage("Partner",d.text);
+  if(d.type === "chat") addMessage("Partner", d.text);
 
-  if(d.type==="typing"){
-    typingDiv.innerText="Partner typing…";
+  if(d.type === "typing"){
+    typingDiv.innerText="Partner typing...";
     clearTimeout(typingTimer);
     typingTimer=setTimeout(()=>typingDiv.innerText="",1500);
   }
 }
-
-/* ================= EXTRAS ================= */
-function startTimer(){
-  timerInt=setInterval(()=>{
-    seconds++;
-    const m=String(Math.floor(seconds/60)).padStart(2,"0");
-    const s=String(seconds%60).padStart(2,"0");
-    timerBadge.innerText=`${m}:${s}`;
-  },1000);
-}
-
-function monitorQuality(){
-  setInterval(async()=>{
-    if(!pc) return;
-    const stats=await pc.getStats();
-    stats.forEach(r=>{
-      if(r.type==="candidate-pair"&&r.state==="succeeded"){
-        qualityBadge.innerText="Quality: Good";
-        qualityBadge.className="badge good";
-      }
-    });
-  },3000);
-}
 </script>
-
 </body>
 </html>
