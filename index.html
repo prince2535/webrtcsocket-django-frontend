@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Django WebRTC Chat</title>
+<title>Stravo</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
@@ -23,6 +23,11 @@ body {
   margin: 20px auto;
 }
 #statusText { color:#00ffcc; font-weight:600; }
+.subtitle {
+  opacity:0.7;
+  font-size:14px;
+  margin-top:-6px;
+}
 .videos { display:flex; justify-content:center; gap:14px; margin-top:15px; }
 video { width:45%; height:320px; background:black; border-radius:14px; }
 .blur { filter: blur(14px); }
@@ -59,8 +64,9 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 <body>
 <div class="glass">
 
-<h2>Django WebRTC Video Chat</h2>
-<p id="statusText">Ready</p>
+<h2>Stravo</h2>
+<p class="subtitle">Instant 1-to-1 video chat with strangers</p>
+<p id="statusText">Connect instantly. Talk freely.</p>
 
 <div id="authBox">
   <input id="email" placeholder="Email"><br>
@@ -186,7 +192,7 @@ function sendTyping(){
   ws.send(JSON.stringify({ room, type:"typing" }));
 }
 
-/* ================= SIGNALING (FIXED) ================= */
+/* ================= SIGNALING (UNCHANGED) ================= */
 async function handleMessage(e){
   const d = JSON.parse(e.data);
 
@@ -225,19 +231,11 @@ async function handleMessage(e){
     }
   }
 
-  /* ✅ CRITICAL FIXED SDP LOGIC */
   if (d.sdp && pc) {
     const desc = new RTCSessionDescription(d.sdp);
 
-    if (desc.type === "answer" && pc.signalingState !== "have-local-offer") {
-      console.warn("Ignoring answer in state:", pc.signalingState);
-      return;
-    }
-
-    if (desc.type === "offer" && pc.signalingState !== "stable") {
-      console.warn("Ignoring offer in state:", pc.signalingState);
-      return;
-    }
+    if (desc.type === "answer" && pc.signalingState !== "have-local-offer") return;
+    if (desc.type === "offer" && pc.signalingState !== "stable") return;
 
     await pc.setRemoteDescription(desc);
 
