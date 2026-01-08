@@ -86,7 +86,7 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 </div>
 
 <script>
-/* ===== STATE ===== */
+/* ================= STATE ================= */
 const statusText = document.getElementById("statusText");
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
@@ -105,7 +105,7 @@ let autoNextTimer = null;
 
 function setStatus(t){ statusText.innerText = t; }
 
-/* ===== LOGIN (mock) ===== */
+/* ================= LOGIN (mock) ================= */
 function login(){
   authBox.style.display="none";
   startBtn.disabled=false;
@@ -113,7 +113,7 @@ function login(){
   setStatus("Logged in");
 }
 
-/* ===== MEDIA (🔑 AUDIO FIX ADDED HERE) ===== */
+/* ================= MEDIA ================= */
 navigator.mediaDevices.getUserMedia({
   video: true,
   audio: {
@@ -125,18 +125,10 @@ navigator.mediaDevices.getUserMedia({
 .then(stream=>{
   localStream = stream;
   localVideo.srcObject = stream;
-
-  console.log(
-    "Local audio tracks:",
-    localStream.getAudioTracks().map(t => t.readyState)
-  );
 })
-.catch(err=>{
-  alert("Camera/Mic permission denied");
-  console.error(err);
-});
+.catch(()=>alert("Camera / mic permission denied"));
 
-/* ===== WEBSOCKET ===== */
+/* ================= WEBSOCKET ================= */
 function connectWS(){
   ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
 
@@ -150,13 +142,11 @@ function connectWS(){
     setStatus("Server disconnected");
   };
 
-  ws.onerror = e => console.error("WebSocket error", e);
-
   ws.onmessage = handleMessage;
 }
 connectWS();
 
-/* ===== CONTROL ===== */
+/* ================= CONTROL ================= */
 function cleanup(){
   if(pc) pc.close();
   pc = null;
@@ -177,7 +167,7 @@ function next(){
   ws.send(JSON.stringify({ type:"next" }));
 }
 
-/* ===== CHAT ===== */
+/* ================= CHAT ================= */
 function addMessage(who,text){
   const p=document.createElement("p");
   p.innerText=who+": "+text;
@@ -196,7 +186,7 @@ function sendTyping(){
   ws.send(JSON.stringify({ room, type:"typing" }));
 }
 
-/* ===== SIGNALING ===== */
+/* ================= SIGNALING (FIXED) ================= */
 async function handleMessage(e){
   const d = JSON.parse(e.data);
 
@@ -216,17 +206,10 @@ async function handleMessage(e){
     localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
     pc.ontrack = e => {
-      console.log(
-        "Remote tracks:",
-        e.streams[0].getTracks().map(t => t.kind)
-      );
-
       remoteVideo.srcObject = e.streams[0];
       remoteVideo.muted = false;
       remoteVideo.playsInline = true;
-
-      const p = remoteVideo.play();
-      if (p) p.catch(()=>{});
+      remoteVideo.play().catch(()=>{});
     };
 
     pc.onicecandidate = e => {
@@ -242,12 +225,26 @@ async function handleMessage(e){
     }
   }
 
-  if(d.sdp && pc){
-    await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
-    if(d.sdp.type === "offer"){
+  /* ✅ CRITICAL FIXED SDP LOGIC */
+  if (d.sdp && pc) {
+    const desc = new RTCSessionDescription(d.sdp);
+
+    if (desc.type === "answer" && pc.signalingState !== "have-local-offer") {
+      console.warn("Ignoring answer in state:", pc.signalingState);
+      return;
+    }
+
+    if (desc.type === "offer" && pc.signalingState !== "stable") {
+      console.warn("Ignoring offer in state:", pc.signalingState);
+      return;
+    }
+
+    await pc.setRemoteDescription(desc);
+
+    if (desc.type === "offer") {
       const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
-      ws.send(JSON.stringify({ room, sdp:ans }));
+      ws.send(JSON.stringify({ room, sdp: ans }));
     }
   }
 
