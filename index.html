@@ -105,7 +105,7 @@ let autoNextTimer = null;
 
 function setStatus(t){ statusText.innerText = t; }
 
-/* ===== LOGIN MOCK ===== */
+/* ===== LOGIN (mock) ===== */
 function login(){
   authBox.style.display="none";
   startBtn.disabled=false;
@@ -115,24 +115,27 @@ function login(){
 
 /* ===== MEDIA ===== */
 navigator.mediaDevices.getUserMedia({ video:true, audio:true })
-.then(s=>{
-  localStream = s;
-  localVideo.srcObject = s;
+.then(stream=>{
+  localStream = stream;
+  localVideo.srcObject = stream;
+  console.log("Audio tracks:", localStream.getAudioTracks());
+})
+.catch(err=>{
+  alert("Camera/Mic permission denied");
+  console.error(err);
 });
 
-/* ===== WS ===== */
+/* ===== WEBSOCKET ===== */
 function connectWS(){
   ws = new WebSocket("wss://webrtcsocket-django-backend.onrender.com/ws/chat/");
 
   ws.onopen = () => {
     wsReady = true;
-    console.log("WebSocket OPEN");
     setStatus("Connected to server");
   };
 
   ws.onclose = () => {
     wsReady = false;
-    console.log("WebSocket CLOSED");
     setStatus("Server disconnected");
   };
 
@@ -201,11 +204,18 @@ async function handleMessage(e){
 
     localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
+    /* 🔑 CRITICAL FIX: VIDEO + AUDIO */
     pc.ontrack = e => {
+      console.log("Remote stream received");
       remoteVideo.srcObject = e.streams[0];
       remoteVideo.muted = false;
+      remoteVideo.volume = 1.0;
       remoteVideo.playsInline = true;
-      remoteVideo.play().catch(()=>{});
+
+      const p = remoteVideo.play();
+      if (p !== undefined) {
+        p.catch(err => console.warn("Autoplay blocked:", err));
+      }
     };
 
     pc.onicecandidate = e => {
