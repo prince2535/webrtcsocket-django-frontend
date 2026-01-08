@@ -113,12 +113,23 @@ function login(){
   setStatus("Logged in");
 }
 
-/* ===== MEDIA ===== */
-navigator.mediaDevices.getUserMedia({ video:true, audio:true })
+/* ===== MEDIA (🔑 AUDIO FIX ADDED HERE) ===== */
+navigator.mediaDevices.getUserMedia({
+  video: true,
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  }
+})
 .then(stream=>{
   localStream = stream;
   localVideo.srcObject = stream;
-  console.log("Audio tracks:", localStream.getAudioTracks());
+
+  console.log(
+    "Local audio tracks:",
+    localStream.getAudioTracks().map(t => t.readyState)
+  );
 })
 .catch(err=>{
   alert("Camera/Mic permission denied");
@@ -204,18 +215,18 @@ async function handleMessage(e){
 
     localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-    /* 🔑 CRITICAL FIX: VIDEO + AUDIO */
     pc.ontrack = e => {
-      console.log("Remote stream received");
+      console.log(
+        "Remote tracks:",
+        e.streams[0].getTracks().map(t => t.kind)
+      );
+
       remoteVideo.srcObject = e.streams[0];
       remoteVideo.muted = false;
-      remoteVideo.volume = 1.0;
       remoteVideo.playsInline = true;
 
       const p = remoteVideo.play();
-      if (p !== undefined) {
-        p.catch(err => console.warn("Autoplay blocked:", err));
-      }
+      if (p) p.catch(()=>{});
     };
 
     pc.onicecandidate = e => {
