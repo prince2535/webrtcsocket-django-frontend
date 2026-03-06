@@ -77,7 +77,6 @@
 </div>
 
 <script>
-/* ================== ORIGINAL WORKING LOGIC (UNCHANGED) ================== */
 
 const ws = new WebSocket(
   "wss://webrtcsocket-django-backend.onrender.com/ws/chat/"
@@ -124,8 +123,27 @@ ws.onmessage = async (e) => {
     room = data.room;
     isInitiator = data.initiator;
 
+    /* TURN + STUN CONFIGURATION */
     pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+
+        {
+          urls: "turn:global.relay.metered.ca:80",
+          username: "a498ab87d22d488f87916c8a",
+          credential: "LpJHO5BMg7AsH2d7"
+        },
+        {
+          urls: "turn:global.relay.metered.ca:443",
+          username: "a498ab87d22d488f87916c8a",
+          credential: "LpJHO5BMg7AsH2d7"
+        },
+        {
+          urls: "turn:global.relay.metered.ca:443?transport=tcp",
+          username: "a498ab87d22d488f87916c8a",
+          credential: "LpJHO5BMg7AsH2d7"
+        }
+      ]
     });
 
     localStream.getTracks().forEach(track =>
@@ -134,6 +152,9 @@ ws.onmessage = async (e) => {
 
     pc.ontrack = e => {
       remoteVideo.srcObject = e.streams[0];
+      remoteVideo.muted = false;
+      remoteVideo.playsInline = true;
+      remoteVideo.play().catch(()=>{});
     };
 
     pc.onicecandidate = e => {
